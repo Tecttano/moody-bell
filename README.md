@@ -5,10 +5,11 @@ Automated bell control for Raspberry Pi 4B with touchscreen.
 ## Features
 
 - Touch-friendly 5" display interface
-- Manual bell control (15 rings)
+- Manual bell control (single toll or 15 rings)
 - Scheduled automated ringing
+- Countdown to next scheduled bell
 - Mute function
-- Real-time clock
+- Real-time clock with activity logs
 - GPIO5 control
 
 ## Hardware
@@ -43,6 +44,15 @@ Touchscreen shows main controls. Tap buttons to ring bell, mute, or manage sched
 
 Backend: `cd backend && source venv/bin/activate && python app.py`
 Frontend: `cd frontend && npm start`
+
+## Updates
+
+After pushing changes to repo:
+```bash
+./setup/update.sh
+```
+
+Automatically pulls, rebuilds, and deploys changes.
 
 ## Tech Stack
 

@@ -21,7 +21,7 @@ Flash Raspberry Pi OS with:
 
 - Pin 29: GPIO5 (BCM) - Bell control
 - 3.3V logic, 16mA max
-- Ring pattern: 2 pulses (100ms/1500ms, 100ms/2000ms)
+- Ring pattern: Single 100ms pulse, 3 seconds between rings
 
 ## Installation
 
@@ -57,12 +57,18 @@ View logs:
 - System: `sudo journalctl -u moody-bell -f`
 - Activity: `cat /opt/moody-bell/backend/bell_activity.log`
 
+Update after repo changes:
+```bash
+cd ~/moody-bell
+./setup/update.sh
+```
+
 Backup database:
 ```bash
 cp /opt/moody-bell/backend/instance/bell_schedule.db ~/backup.db
 ```
 
-Monthly updates:
+Monthly system updates:
 ```bash
 sudo apt-get update && sudo apt-get upgrade -y
 sudo reboot

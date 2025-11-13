@@ -14,6 +14,11 @@ echo "=== Moody Bell Update Script ==="
 
 cd $REPO_DIR
 
+# Reset any local changes to avoid conflicts
+echo "Resetting local changes..."
+git reset --hard HEAD
+git clean -fd
+
 # Pull latest changes
 echo "Pulling latest changes..."
 BEFORE_PULL=$(git rev-parse HEAD)

@@ -1,0 +1,94 @@
+# Setup Guide
+
+Quick setup instructions for the bell system.
+
+## Hardware
+
+- Raspberry Pi 4B with 5.1V 3A power supply
+- 5" touchscreen
+- GPIO breakout hat
+- 16GB+ microSD card with Raspberry Pi OS
+- Bell interface circuit
+
+### OS Setup
+
+Flash Raspberry Pi OS with:
+- SSH enabled
+- WiFi configured
+- Timezone: America/Chicago
+
+## GPIO
+
+- Pin 29: GPIO5 (BCM) - Bell control
+- 3.3V logic, 16mA max
+- Ring pattern: 2 pulses (100ms/1500ms, 100ms/2000ms)
+
+## Installation
+
+```bash
+cd ~/moody-bell/setup
+chmod +x install.sh
+./install.sh
+sudo reboot
+```
+
+For kiosk mode:
+```bash
+cd setup
+chmod +x autostart-kiosk.sh
+./autostart-kiosk.sh
+```
+
+## Testing
+
+Check services:
+```bash
+sudo systemctl status moody-bell
+curl http://localhost/api/status
+```
+
+Open `http://localhost` - should see interface with clock and bell button.
+
+Test GPIO manually by tapping "Ring Bell" button. Should hear relay clicks and bell rings.
+
+## Maintenance
+
+View logs:
+- System: `sudo journalctl -u moody-bell -f`
+- Activity: `cat /opt/moody-bell/backend/bell_activity.log`
+
+Backup database:
+```bash
+cp /opt/moody-bell/backend/instance/bell_schedule.db ~/backup.db
+```
+
+Monthly updates:
+```bash
+sudo apt-get update && sudo apt-get upgrade -y
+sudo reboot
+```
+
+## Troubleshooting
+
+**Bell doesn't ring:**
+- Check if muted
+- Check logs: `sudo journalctl -u moody-bell -n 20`
+- Check GPIO connections
+- Restart: `sudo systemctl restart moody-bell`
+
+**Interface not loading:**
+```bash
+sudo systemctl restart moody-bell
+sudo systemctl restart nginx
+```
+
+**Wrong time:**
+```bash
+sudo timedatectl set-timezone America/Chicago
+sudo timedatectl set-ntp true
+```
+
+**Service errors:**
+```bash
+sudo journalctl -u moody-bell -n 50
+```

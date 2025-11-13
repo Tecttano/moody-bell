@@ -26,7 +26,7 @@ const LogsTerminal = () => {
 
   const fetchLogs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/logs?limit=30');
+      const response = await fetch('/api/logs?limit=30');
       const data = await response.json();
       setLogs(data);
     } catch (error) {

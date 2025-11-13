@@ -42,3 +42,4 @@ logs/
 test_venv/
 test_backend.py
 backend/test_venv/
+CLAUDE.md

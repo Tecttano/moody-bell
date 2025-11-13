@@ -57,10 +57,14 @@ View logs:
 - System: `sudo journalctl -u moody-bell -f`
 - Activity: `cat /opt/moody-bell/backend/bell_activity.log`
 
-Update after repo changes:
+Update from repo:
 ```bash
-cd ~/moody-bell
 ./setup/update.sh
+```
+
+Rebuild without pulling:
+```bash
+./setup/restart.sh
 ```
 
 Backup database:

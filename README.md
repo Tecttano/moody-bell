@@ -47,12 +47,15 @@ Frontend: `cd frontend && npm start`
 
 ## Updates
 
-After pushing changes to repo:
+Pull and deploy from repo:
 ```bash
 ./setup/update.sh
 ```
 
-Automatically pulls, rebuilds, and deploys changes.
+Rebuild without pulling:
+```bash
+./setup/restart.sh
+```
 
 ## Tech Stack
 

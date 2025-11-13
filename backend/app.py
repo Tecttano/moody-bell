@@ -168,7 +168,8 @@ def load_schedules_into_scheduler():
             trigger=trigger,
             args=[sched.id, sched.num_rings],
             id=f'schedule_{sched.id}',
-            replace_existing=True
+            replace_existing=True,
+            misfire_grace_time=60
         )
 
     print(f"Loaded {len(schedules)} schedules into scheduler")

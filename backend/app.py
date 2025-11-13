@@ -98,19 +98,15 @@ class Schedule(db.Model):
 
 
 def ring_once():
-    """Execute one ring cycle: on 100ms, off 1500ms, on 100ms, off 2000ms"""
+    """Execute one ring: single toll with 3 second spacing"""
     if GPIO_AVAILABLE:
         GPIO.output(BELL_PIN, GPIO.HIGH)
-        time.sleep(0.1)
+        time.sleep(0.1)  # 100ms pulse
         GPIO.output(BELL_PIN, GPIO.LOW)
-        time.sleep(1.5)
-        GPIO.output(BELL_PIN, GPIO.HIGH)
-        time.sleep(0.1)
-        GPIO.output(BELL_PIN, GPIO.LOW)
-        time.sleep(2.0)
+        time.sleep(2.9)  # 2.9s off (total = 3 seconds)
     else:
         print("RING! (simulated)")
-        time.sleep(3.7)  # Total time for one ring
+        time.sleep(3.0)  # Total time for one ring
 
 
 def ring_bell(num_rings):

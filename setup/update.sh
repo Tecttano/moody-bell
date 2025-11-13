@@ -25,6 +25,9 @@ BEFORE_PULL=$(git rev-parse HEAD)
 git pull
 AFTER_PULL=$(git rev-parse HEAD)
 
+# Ensure scripts are executable after pull
+chmod +x setup/*.sh 2>/dev/null || true
+
 # Determine what changed
 if [ "$BEFORE_PULL" = "$AFTER_PULL" ]; then
     if [ "$FORCE" = false ]; then

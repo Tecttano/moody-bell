@@ -17,7 +17,7 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
 
     const now = new Date();
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
     const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const currentDayIndex = dayOrder.indexOf(currentDay);
@@ -26,14 +26,14 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
     let minDiff = Infinity;
 
     schedules.filter(s => s.enabled).forEach(schedule => {
-      const schedMinutes = schedule.hour * 60 + schedule.minute;
+      const schedSeconds = schedule.hour * 3600 + schedule.minute * 60;
 
       if (schedule.day_of_week === 'all' || schedule.day_of_week === currentDay) {
-        if (schedMinutes > currentMinutes) {
-          const diff = schedMinutes - currentMinutes;
+        if (schedSeconds > currentSeconds) {
+          const diff = schedSeconds - currentSeconds;
           if (diff < minDiff) {
             minDiff = diff;
-            nextBell = { ...schedule, minutesUntil: diff };
+            nextBell = { ...schedule, secondsUntil: diff };
           }
         }
       }
@@ -42,12 +42,12 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
         const schedDayIndex = dayOrder.indexOf(schedule.day_of_week);
         let dayDiff = schedDayIndex - currentDayIndex;
         if (dayDiff < 0) dayDiff += 7;
-        if (dayDiff === 0 && schedMinutes <= currentMinutes) dayDiff = 7;
+        if (dayDiff === 0 && schedSeconds <= currentSeconds) dayDiff = 7;
 
-        const totalMinutes = dayDiff * 24 * 60 + schedMinutes - currentMinutes;
-        if (totalMinutes < minDiff) {
-          minDiff = totalMinutes;
-          nextBell = { ...schedule, minutesUntil: totalMinutes };
+        const totalSeconds = dayDiff * 24 * 3600 + schedSeconds - currentSeconds;
+        if (totalSeconds < minDiff) {
+          minDiff = totalSeconds;
+          nextBell = { ...schedule, secondsUntil: totalSeconds };
         }
       }
     });
@@ -55,14 +55,22 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
     return nextBell;
   };
 
-  const formatCountdown = (minutes) => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours < 24) return `${hours}h ${mins}m`;
+  const formatCountdown = (seconds) => {
+    if (seconds < 60) return `${seconds}s`;
+
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    if (mins < 60) return `${mins}m ${secs}s`;
+
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+
+    if (hours < 24) return `${hours}h ${remainingMins}m ${secs}s`;
+
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
-    return `${days}d ${remainingHours}h`;
+    return `${days}d ${remainingHours}h ${remainingMins}m`;
   };
 
   const nextBell = getNextBell();
@@ -78,7 +86,7 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
         <div className="status-item center">
           <div className="status-label">Next Bell</div>
           <div className="status-value">
-            {nextBell ? `${formatCountdown(nextBell.minutesUntil)} (${nextBell.num_rings}×)` : '--'}
+            {nextBell ? `${formatCountdown(nextBell.secondsUntil)} (${nextBell.num_rings}×)` : '--'}
           </div>
         </div>
         <div className={`status-item ${muted ? 'status-muted' : 'status-active'}`}>

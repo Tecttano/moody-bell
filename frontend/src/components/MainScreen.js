@@ -2,7 +2,7 @@ import React from 'react';
 import './MainScreen.css';
 import LogsTerminal from './LogsTerminal';
 
-const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSchedules }) => {
+const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSchedules, schedules }) => {
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -16,6 +16,61 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
     return date.toLocaleDateString('en-US', options);
   };
 
+  const getNextBell = () => {
+    if (!schedules || schedules.length === 0) return null;
+
+    const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDayIndex = dayOrder.indexOf(currentDay);
+
+    let nextBell = null;
+    let minDiff = Infinity;
+
+    schedules.filter(s => s.enabled).forEach(schedule => {
+      const schedMinutes = schedule.hour * 60 + schedule.minute;
+
+      if (schedule.day_of_week === 'all' || schedule.day_of_week === currentDay) {
+        if (schedMinutes > currentMinutes) {
+          const diff = schedMinutes - currentMinutes;
+          if (diff < minDiff) {
+            minDiff = diff;
+            nextBell = { ...schedule, minutesUntil: diff };
+          }
+        }
+      }
+
+      if (schedule.day_of_week !== 'all') {
+        const schedDayIndex = dayOrder.indexOf(schedule.day_of_week);
+        let dayDiff = schedDayIndex - currentDayIndex;
+        if (dayDiff < 0) dayDiff += 7;
+        if (dayDiff === 0 && schedMinutes <= currentMinutes) dayDiff = 7;
+
+        const totalMinutes = dayDiff * 24 * 60 + schedMinutes - currentMinutes;
+        if (totalMinutes < minDiff) {
+          minDiff = totalMinutes;
+          nextBell = { ...schedule, minutesUntil: totalMinutes };
+        }
+      }
+    });
+
+    return nextBell;
+  };
+
+  const formatCountdown = (minutes) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours < 24) return `${hours}h ${mins}m`;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h`;
+  };
+
+  const nextBell = getNextBell();
+
   return (
     <div className="dashboard-container">
       {/* Top Status Bar */}
@@ -25,8 +80,10 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
           <div className="status-value">{formatTime(currentTime)}</div>
         </div>
         <div className="status-item center">
-          <div className="status-label">Date</div>
-          <div className="status-value">{formatDate(currentTime)}</div>
+          <div className="status-label">Next Bell</div>
+          <div className="status-value">
+            {nextBell ? `${formatCountdown(nextBell.minutesUntil)} (${nextBell.num_rings}×)` : '--'}
+          </div>
         </div>
         <div className={`status-item ${muted ? 'status-muted' : 'status-active'}`}>
           <div className="status-label">System</div>
@@ -54,6 +111,13 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
             <h3 className="widget-title">Quick Controls</h3>
           </div>
           <div className="widget-body">
+            <button
+              className="widget-btn btn-single-toll"
+              onClick={() => onRingBell(1)}
+            >
+              <span className="widget-btn-icon">🔔</span>
+              <span className="widget-btn-text">Single Toll</span>
+            </button>
             <button
               className={`widget-btn ${muted ? 'btn-unmute' : 'btn-mute'}`}
               onClick={onToggleMute}

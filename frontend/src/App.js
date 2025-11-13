@@ -45,9 +45,9 @@ function App() {
     }
   };
 
-  const handleRingBell = async () => {
+  const handleRingBell = async (numRings = 15) => {
     try {
-      await axios.post(`${API_BASE}/ring`, { num_rings: 15 });
+      await axios.post(`${API_BASE}/ring`, { num_rings: numRings });
     } catch (error) {
       console.error('Error ringing bell:', error);
       alert('Error ringing bell');
@@ -104,6 +104,7 @@ function App() {
           onRingBell={handleRingBell}
           onToggleMute={handleToggleMute}
           onManageSchedules={() => setCurrentView('schedule')}
+          schedules={schedules}
         />
       ) : (
         <ScheduleManager

@@ -78,11 +78,6 @@ const ScheduleManager = ({ schedules, onBack, onAddSchedule, onUpdateSchedule, o
     return `${displayHour}:${displayMinute} ${period}`;
   };
 
-  const getDayLabel = (day) => {
-    const dayObj = DAYS.find(d => d.value === day);
-    return dayObj ? dayObj.label : day;
-  };
-
   const groupSchedulesByDay = () => {
     const grouped = {};
     schedules.forEach(schedule => {

@@ -11,11 +11,6 @@ const MainScreen = ({ currentTime, muted, onRingBell, onToggleMute, onManageSche
     });
   };
 
-  const formatDate = (date) => {
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-  };
-
   const getNextBell = () => {
     if (!schedules || schedules.length === 0) return null;
 

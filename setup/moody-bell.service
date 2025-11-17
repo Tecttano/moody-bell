@@ -1,0 +1,15 @@
+[Unit]
+Description=Moody Church Bell System
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/moody-bell/backend
+Environment="PATH=/opt/moody-bell/backend/venv/bin"
+ExecStart=/opt/moody-bell/backend/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

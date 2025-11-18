@@ -11,6 +11,10 @@ from apscheduler.triggers.cron import CronTrigger
 import threading
 import time
 import pytz
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Import GPIO only if running on Raspberry Pi
 try:
@@ -40,8 +44,23 @@ logger = logging.getLogger('bell')
 logger.setLevel(logging.INFO)
 logger.addHandler(file_handler)
 
+# Get system timezone from /etc/timezone or fall back to environment variable
+def get_system_timezone():
+    """Auto-detect system timezone"""
+    # Try to read from /etc/timezone (Raspberry Pi standard location)
+    try:
+        with open('/etc/timezone', 'r') as f:
+            tz = f.read().strip()
+            if tz:
+                return tz
+    except (FileNotFoundError, IOError):
+        pass
+
+    # Fall back to environment variable or default
+    return os.getenv('TIMEZONE', 'UTC')
+
 # GPIO Configuration
-BELL_PIN = 5
+BELL_PIN = int(os.getenv('BELL_GPIO_PIN', '5'))
 if GPIO_AVAILABLE:
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(BELL_PIN, GPIO.OUT)
@@ -49,7 +68,8 @@ if GPIO_AVAILABLE:
 
 # Global state
 muted = False
-scheduler = BackgroundScheduler(timezone=pytz.timezone('America/Chicago'))
+SYSTEM_TIMEZONE = get_system_timezone()
+scheduler = BackgroundScheduler(timezone=pytz.timezone(SYSTEM_TIMEZONE))
 
 # Activity logs (circular buffer, last 100 entries)
 activity_logs = []
@@ -320,8 +340,9 @@ with app.app_context():
 scheduler.start()
 
 # Add initial system startup log
-add_log("Moody Bell system started", 'success')
-add_log(f"GPIO mode: {'Hardware' if GPIO_AVAILABLE else 'Simulation'}", 'info')
+add_log("Bell system started", 'success')
+add_log(f"Timezone: {SYSTEM_TIMEZONE}", 'info')
+add_log(f"GPIO mode: {'Hardware' if GPIO_AVAILABLE else 'Simulation'} (Pin {BELL_PIN})", 'info')
 add_log(f"Loaded {schedule_count} schedules", 'info')
 
 # Note: NTP time sync is handled by system cron job (configured in setup/install.sh)

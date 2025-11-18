@@ -5,9 +5,15 @@
 
 set -e
 
+# Detect script directory and repository root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+
 echo "======================================"
-echo "Moody Church Bell System Installer"
+echo "Church Bell System Installer"
 echo "======================================"
+echo ""
+echo "Repository location: $REPO_DIR"
 echo ""
 
 # Check if running on Raspberry Pi
@@ -37,9 +43,9 @@ sudo chown -R $USER:$USER $APP_DIR
 
 # Copy application files
 echo "Copying application files..."
-cp -r ../backend $APP_DIR/
-cp -r ../frontend $APP_DIR/
-cp -r ../setup $APP_DIR/
+cp -r "$REPO_DIR/backend" $APP_DIR/
+cp -r "$REPO_DIR/frontend" $APP_DIR/
+cp -r "$REPO_DIR/setup" $APP_DIR/
 chmod +x $APP_DIR/setup/*.sh
 
 # Setup Python backend
@@ -59,13 +65,13 @@ npm run build
 
 # Configure nginx
 echo "Configuring nginx..."
-sudo cp /home/$USER/moody-bell/setup/nginx-config /etc/nginx/sites-available/moody-bell
+sudo cp "$APP_DIR/setup/nginx-config" /etc/nginx/sites-available/moody-bell
 sudo ln -sf /etc/nginx/sites-available/moody-bell /etc/nginx/sites-enabled/moody-bell
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Install systemd service
 echo "Installing systemd service..."
-sudo cp /home/$USER/moody-bell/setup/moody-bell.service /etc/systemd/system/
+sudo cp "$APP_DIR/setup/moody-bell.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable moody-bell.service
 

@@ -15,7 +15,7 @@ Quick setup instructions for the bell system.
 Flash Raspberry Pi OS with:
 - SSH enabled
 - WiFi configured
-- Timezone: America/Chicago
+- Timezone: Set to your local timezone (system auto-detects)
 
 ## GPIO
 
@@ -26,7 +26,11 @@ Flash Raspberry Pi OS with:
 ## Installation
 
 ```bash
-cd ~/moody-bell/setup
+# Clone the repository
+git clone https://github.com/Tecttano/moody-bell.git
+cd moody-bell/setup
+
+# Run installer
 chmod +x install.sh
 ./install.sh
 sudo reboot
@@ -94,7 +98,7 @@ sudo systemctl restart nginx
 
 **Wrong time:**
 ```bash
-sudo timedatectl set-timezone America/Chicago
+sudo timedatectl set-timezone America/New_York  # Or your timezone
 sudo timedatectl set-ntp true
 ```
 

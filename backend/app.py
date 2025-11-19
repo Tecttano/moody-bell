@@ -192,7 +192,11 @@ def ring_bell(num_rings):
 
 def ring_bell_async(num_rings):
     """Ring bell in a separate thread to not block the API"""
-    thread = threading.Thread(target=ring_bell, args=(num_rings,))
+    def ring_with_context():
+        with app.app_context():
+            ring_bell(num_rings)
+
+    thread = threading.Thread(target=ring_with_context)
     thread.start()
 
 

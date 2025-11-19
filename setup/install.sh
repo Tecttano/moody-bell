@@ -114,6 +114,16 @@ EOF'
     echo "Touchscreen configured for 180-degree rotation."
 fi
 
+# Setup kiosk mode autostart
+echo ""
+read -p "Enable kiosk mode (fullscreen on touchscreen)? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Configuring kiosk mode autostart..."
+    $APP_DIR/setup/autostart-kiosk.sh
+    echo "Kiosk mode will start automatically on boot."
+fi
+
 # Start services
 echo "Starting services..."
 sudo systemctl restart nginx

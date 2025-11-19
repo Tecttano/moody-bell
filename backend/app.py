@@ -11,10 +11,6 @@ from apscheduler.triggers.cron import CronTrigger
 import threading
 import time
 import pytz
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Import GPIO only if running on Raspberry Pi
 try:
@@ -44,23 +40,8 @@ logger = logging.getLogger('bell')
 logger.setLevel(logging.INFO)
 logger.addHandler(file_handler)
 
-# Get system timezone from /etc/timezone or fall back to environment variable
-def get_system_timezone():
-    """Auto-detect system timezone"""
-    # Try to read from /etc/timezone (Raspberry Pi standard location)
-    try:
-        with open('/etc/timezone', 'r') as f:
-            tz = f.read().strip()
-            if tz:
-                return tz
-    except (FileNotFoundError, IOError):
-        pass
-
-    # Fall back to environment variable or default
-    return os.getenv('TIMEZONE', 'UTC')
-
 # GPIO Configuration
-BELL_PIN = int(os.getenv('BELL_GPIO_PIN', '5'))
+BELL_PIN = 5
 if GPIO_AVAILABLE:
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(BELL_PIN, GPIO.OUT)
@@ -68,8 +49,7 @@ if GPIO_AVAILABLE:
 
 # Global state
 muted = False
-SYSTEM_TIMEZONE = get_system_timezone()
-scheduler = BackgroundScheduler(timezone=pytz.timezone(SYSTEM_TIMEZONE))
+scheduler = BackgroundScheduler(timezone=pytz.timezone('America/Chicago'))
 
 # Activity logs (circular buffer, last 100 entries)
 activity_logs = []
@@ -117,6 +97,34 @@ class Schedule(db.Model):
         }
 
 
+class MuteSchedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    start_datetime = db.Column(db.DateTime, nullable=False)
+    end_datetime = db.Column(db.DateTime, nullable=False)
+    enabled = db.Column(db.Boolean, default=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'start_datetime': self.start_datetime.isoformat(),
+            'end_datetime': self.end_datetime.isoformat(),
+            'enabled': self.enabled
+        }
+
+
+def is_muted_by_schedule():
+    """Check if bell is currently muted by any active mute schedule"""
+    now = datetime.now()
+    active_mutes = MuteSchedule.query.filter(
+        MuteSchedule.enabled == True,
+        MuteSchedule.start_datetime <= now,
+        MuteSchedule.end_datetime >= now
+    ).all()
+    return len(active_mutes) > 0
+
+
 def ring_once():
     """Execute one ring: single toll with 3 second spacing"""
     if GPIO_AVAILABLE:
@@ -132,7 +140,11 @@ def ring_once():
 def ring_bell(num_rings):
     """Ring the bell specified number of times"""
     if muted:
-        add_log(f"Bell muted - skipped {num_rings} rings", 'warning')
+        add_log(f"Bell muted (manual) - skipped {num_rings} rings", 'warning')
+        return
+
+    if is_muted_by_schedule():
+        add_log(f"Bell muted (scheduled) - skipped {num_rings} rings", 'warning')
         return
 
     add_log(f"Ringing bell {num_rings} times", 'success')
@@ -330,6 +342,64 @@ def delete_schedule(schedule_id):
     return jsonify({'status': 'deleted'})
 
 
+@app.route('/api/mute-schedules', methods=['GET'])
+def get_mute_schedules():
+    """Get all mute schedules"""
+    mute_schedules = MuteSchedule.query.all()
+    return jsonify([ms.to_dict() for ms in mute_schedules])
+
+
+@app.route('/api/mute-schedules', methods=['POST'])
+def create_mute_schedule():
+    """Create a new mute schedule"""
+    data = request.get_json()
+
+    mute_schedule = MuteSchedule(
+        name=data['name'],
+        start_datetime=datetime.fromisoformat(data['start_datetime']),
+        end_datetime=datetime.fromisoformat(data['end_datetime']),
+        enabled=data.get('enabled', True)
+    )
+
+    db.session.add(mute_schedule)
+    db.session.commit()
+
+    add_log(f"Mute schedule created: {mute_schedule.name}", 'info')
+
+    return jsonify(mute_schedule.to_dict()), 201
+
+
+@app.route('/api/mute-schedules/<int:mute_id>', methods=['PUT'])
+def update_mute_schedule(mute_id):
+    """Update an existing mute schedule"""
+    mute_schedule = MuteSchedule.query.get_or_404(mute_id)
+    data = request.get_json()
+
+    mute_schedule.name = data.get('name', mute_schedule.name)
+    mute_schedule.start_datetime = datetime.fromisoformat(data.get('start_datetime', mute_schedule.start_datetime.isoformat()))
+    mute_schedule.end_datetime = datetime.fromisoformat(data.get('end_datetime', mute_schedule.end_datetime.isoformat()))
+    mute_schedule.enabled = data.get('enabled', mute_schedule.enabled)
+
+    db.session.commit()
+
+    add_log(f"Mute schedule updated: {mute_schedule.name}", 'info')
+
+    return jsonify(mute_schedule.to_dict())
+
+
+@app.route('/api/mute-schedules/<int:mute_id>', methods=['DELETE'])
+def delete_mute_schedule(mute_id):
+    """Delete a mute schedule"""
+    mute_schedule = MuteSchedule.query.get_or_404(mute_id)
+    name = mute_schedule.name
+    db.session.delete(mute_schedule)
+    db.session.commit()
+
+    add_log(f"Mute schedule deleted: {name}", 'info')
+
+    return jsonify({'status': 'deleted'})
+
+
 # Initialize database and scheduler
 with app.app_context():
     db.create_all()
@@ -340,9 +410,8 @@ with app.app_context():
 scheduler.start()
 
 # Add initial system startup log
-add_log("Bell system started", 'success')
-add_log(f"Timezone: {SYSTEM_TIMEZONE}", 'info')
-add_log(f"GPIO mode: {'Hardware' if GPIO_AVAILABLE else 'Simulation'} (Pin {BELL_PIN})", 'info')
+add_log("Moody Bell system started", 'success')
+add_log(f"GPIO mode: {'Hardware' if GPIO_AVAILABLE else 'Simulation'}", 'info')
 add_log(f"Loaded {schedule_count} schedules", 'info')
 
 # Note: NTP time sync is handled by system cron job (configured in setup/install.sh)

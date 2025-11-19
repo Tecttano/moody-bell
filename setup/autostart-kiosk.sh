@@ -40,10 +40,9 @@ export WAYLAND_DISPLAY=wayland-0
 # Wait a moment for display server to be ready
 sleep 2
 
-# Disable screen blanking (works via XWayland)
-xset s off
-xset -dpms
-xset s noblank
+# Enable screen timeout after 5 minutes of inactivity (saves display lifespan)
+xset s 300 300
+xset s blank
 
 # Hide mouse cursor after 5 seconds of inactivity
 unclutter -idle 5 &

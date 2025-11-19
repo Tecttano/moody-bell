@@ -11,6 +11,7 @@ Automated bell control for Raspberry Pi 4B with touchscreen.
 - Mute function
 - Real-time clock with activity logs
 - GPIO5 control
+- Auto screen timeout (5 min) - touch to wake
 
 ## Hardware
 

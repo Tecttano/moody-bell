@@ -79,19 +79,26 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
   // Separate recurring and non-recurring schedules
   const recurringSchedules = muteSchedules.filter(s => s.is_recurring);
 
-  // Filter non-recurring to only show next 7 days
+  const now = new Date();
   const oneWeekFromNow = new Date();
   oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
 
-  const upcomingSchedules = muteSchedules.filter(s => {
-    if (s.is_recurring) return false; // Already handled separately
+  // Split non-recurring into next 7 days and future events
+  const next7Days = muteSchedules.filter(s => {
+    if (s.is_recurring) return false;
     const startDate = new Date(s.start_datetime);
-    return startDate <= oneWeekFromNow;
+    return startDate >= now && startDate <= oneWeekFromNow;
   });
+
+  const futureEvents = muteSchedules.filter(s => {
+    if (s.is_recurring) return false;
+    const startDate = new Date(s.start_datetime);
+    return startDate > oneWeekFromNow;
+  }).sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
 
   const groupSchedulesByDate = () => {
     const grouped = {};
-    upcomingSchedules.forEach(schedule => {
+    next7Days.forEach(schedule => {
       const startDate = new Date(schedule.start_datetime).toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
@@ -209,7 +216,7 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
       )}
 
       <div className="schedules-list">
-        {recurringSchedules.length === 0 && sortedDates.length === 0 ? (
+        {recurringSchedules.length === 0 && sortedDates.length === 0 && futureEvents.length === 0 ? (
           <div className="no-schedules">No mute schedules configured</div>
         ) : (
           <>
@@ -252,7 +259,7 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
               </div>
             )}
 
-            {/* Upcoming One-Time Schedules (Next 7 Days) */}
+            {/* Next 7 Days */}
             {sortedDates.map(date => (
               <div key={date} className="day-group">
                 <h3 className="day-header">{date}</h3>
@@ -290,6 +297,45 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
                 ))}
               </div>
             ))}
+
+            {/* Future Events (Beyond Next 7 Days) */}
+            {futureEvents.length > 0 && (
+              <div className="day-group">
+                <h3 className="day-header">Upcoming Events</h3>
+                {futureEvents.map(schedule => (
+                  <div
+                    key={schedule.id}
+                    className={`schedule-item ${!schedule.enabled ? 'disabled' : ''}`}
+                  >
+                    <div className="schedule-info">
+                      <div className="schedule-time">
+                        {schedule.name}
+                      </div>
+                      <div className="schedule-rings">
+                        {new Date(schedule.start_datetime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}: {formatDateTime(schedule.start_datetime)} - {formatDateTime(schedule.end_datetime)}
+                      </div>
+                      {!schedule.enabled && (
+                        <div className="schedule-status">Disabled</div>
+                      )}
+                    </div>
+                    <div className="schedule-actions">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(schedule)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(schedule.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -41,8 +41,10 @@ export WAYLAND_DISPLAY=wayland-0
 sleep 2
 
 # Enable screen timeout after 5 minutes of inactivity (saves display lifespan)
-xset s 300 300
-xset s blank
+# Using swayidle for Wayland idle detection and wlopm to control display power
+swayidle -w \
+    timeout 300 'wlopm --off "*"' \
+    resume 'wlopm --on "*"' &
 
 # Hide mouse cursor after 5 seconds of inactivity
 unclutter -idle 5 &

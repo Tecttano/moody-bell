@@ -33,7 +33,7 @@ sudo apt-get upgrade -y
 
 # Install required system packages
 echo "Installing system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv nodejs npm nginx sqlite3 chromium unclutter x11-xserver-utils fonts-noto-color-emoji
+sudo apt-get install -y python3 python3-pip python3-venv nodejs npm nginx sqlite3 chromium unclutter x11-xserver-utils fonts-noto-color-emoji swayidle wlopm
 
 # Create application directory
 APP_DIR="/opt/moody-bell"

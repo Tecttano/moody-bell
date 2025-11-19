@@ -75,4 +75,12 @@ if echo "$CHANGED_FILES" | grep -q "frontend"; then
     echo "Frontend deployed"
 fi
 
+# Update setup scripts if needed
+if echo "$CHANGED_FILES" | grep -q "setup"; then
+    echo "Updating setup scripts..."
+    sudo cp -r setup/* $APP_DIR/setup/
+    sudo chmod +x $APP_DIR/setup/*.sh
+    echo "Setup scripts updated"
+fi
+
 echo "=== Update complete! ==="

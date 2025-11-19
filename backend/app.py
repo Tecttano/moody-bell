@@ -55,6 +55,9 @@ scheduler = BackgroundScheduler(timezone=pytz.timezone('America/Chicago'))
 activity_logs = []
 MAX_LOGS = 100
 
+# Track manual overrides for mute schedules (set of mute_schedule IDs that have been manually overridden)
+mute_schedule_overrides = set()
+
 def add_log(message, log_type='info'):
     """Add activity log entry"""
     global activity_logs
@@ -103,6 +106,7 @@ class MuteSchedule(db.Model):
     start_datetime = db.Column(db.DateTime, nullable=False)
     end_datetime = db.Column(db.DateTime, nullable=False)
     enabled = db.Column(db.Boolean, default=True)
+    is_recurring = db.Column(db.Boolean, default=False)  # If True, repeats daily using time portion only
 
     def to_dict(self):
         return {
@@ -110,19 +114,53 @@ class MuteSchedule(db.Model):
             'name': self.name,
             'start_datetime': self.start_datetime.isoformat(),
             'end_datetime': self.end_datetime.isoformat(),
-            'enabled': self.enabled
+            'enabled': self.enabled,
+            'is_recurring': self.is_recurring
         }
+
+
+def get_active_mute_schedules():
+    """Get list of currently active mute schedules (excluding overridden ones)"""
+    global mute_schedule_overrides
+    now = datetime.now()
+    current_time = now.time()
+
+    # Get all enabled mute schedules
+    all_mutes = MuteSchedule.query.filter(MuteSchedule.enabled == True).all()
+
+    active_mutes = []
+    for ms in all_mutes:
+        if ms.is_recurring:
+            # For recurring schedules, check if current time falls in the time range
+            start_time = ms.start_datetime.time()
+            end_time = ms.end_datetime.time()
+
+            # Handle schedules that span midnight (e.g., 8pm to 6am)
+            if start_time <= end_time:
+                # Normal range (e.g., 9am to 5pm)
+                if start_time <= current_time <= end_time:
+                    active_mutes.append(ms)
+            else:
+                # Spans midnight (e.g., 8pm to 6am)
+                if current_time >= start_time or current_time <= end_time:
+                    active_mutes.append(ms)
+        else:
+            # For one-time schedules, check exact datetime range
+            if ms.start_datetime <= now <= ms.end_datetime:
+                active_mutes.append(ms)
+
+    active_ids = {ms.id for ms in active_mutes}
+
+    # Clean up overrides for schedules that are no longer active
+    mute_schedule_overrides = mute_schedule_overrides.intersection(active_ids)
+
+    # Filter out manually overridden schedules
+    return [ms for ms in active_mutes if ms.id not in mute_schedule_overrides]
 
 
 def is_muted_by_schedule():
     """Check if bell is currently muted by any active mute schedule"""
-    now = datetime.now()
-    active_mutes = MuteSchedule.query.filter(
-        MuteSchedule.enabled == True,
-        MuteSchedule.start_datetime <= now,
-        MuteSchedule.end_datetime >= now
-    ).all()
-    return len(active_mutes) > 0
+    return len(get_active_mute_schedules()) > 0
 
 
 def ring_once():
@@ -243,13 +281,40 @@ def create_default_schedules():
     print("Default schedules created")
 
 
+def create_default_mute_schedules():
+    """Create default recurring nighttime mute schedule (8pm - 6am daily)"""
+    # Check if mute schedules already exist
+    if MuteSchedule.query.count() > 0:
+        return
+
+    # Create ONE recurring nighttime mute schedule (8pm - 6am daily)
+    # We use datetime just to store the time portion; date is ignored for recurring schedules
+    base_date = datetime.now().date()
+    from datetime import timedelta
+
+    mute_schedule = MuteSchedule(
+        name="Nighttime Quiet Hours",
+        start_datetime=datetime.combine(base_date, dt_time(20, 0)),  # 8:00 PM
+        end_datetime=datetime.combine(base_date + timedelta(days=1), dt_time(6, 0)),  # 6:00 AM next day
+        enabled=True,
+        is_recurring=True
+    )
+    db.session.add(mute_schedule)
+
+    db.session.commit()
+    print("Default recurring nighttime mute schedule created (8pm-6am daily)")
+
+
 # API Routes
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
     """Get system status including mute state and current time"""
+    active_mute_schedules = get_active_mute_schedules()
     return jsonify({
         'muted': muted,
+        'muted_by_schedule': len(active_mute_schedules) > 0,
+        'active_mute_schedules': [ms.to_dict() for ms in active_mute_schedules],
         'current_time': datetime.now().isoformat(),
         'gpio_available': GPIO_AVAILABLE
     })
@@ -258,11 +323,20 @@ def get_status():
 @app.route('/api/mute', methods=['POST'])
 def set_mute():
     """Toggle mute state"""
-    global muted
+    global muted, mute_schedule_overrides
     data = request.get_json()
     muted = data.get('muted', False)
+    override_schedule = data.get('override_schedule', False)
+
+    # If unmuting and there are active mute schedules, override them
+    if not muted and override_schedule:
+        active_mutes = get_active_mute_schedules()
+        for ms in active_mutes:
+            mute_schedule_overrides.add(ms.id)
+            add_log(f"Mute schedule overridden: {ms.name}", 'warning')
+
     status = "enabled" if muted else "disabled"
-    add_log(f"Mute {status}", 'info')
+    add_log(f"Mute {status} (manual)", 'info')
     return jsonify({'muted': muted})
 
 
@@ -358,7 +432,8 @@ def create_mute_schedule():
         name=data['name'],
         start_datetime=datetime.fromisoformat(data['start_datetime']),
         end_datetime=datetime.fromisoformat(data['end_datetime']),
-        enabled=data.get('enabled', True)
+        enabled=data.get('enabled', True),
+        is_recurring=data.get('is_recurring', False)
     )
 
     db.session.add(mute_schedule)
@@ -379,6 +454,7 @@ def update_mute_schedule(mute_id):
     mute_schedule.start_datetime = datetime.fromisoformat(data.get('start_datetime', mute_schedule.start_datetime.isoformat()))
     mute_schedule.end_datetime = datetime.fromisoformat(data.get('end_datetime', mute_schedule.end_datetime.isoformat()))
     mute_schedule.enabled = data.get('enabled', mute_schedule.enabled)
+    mute_schedule.is_recurring = data.get('is_recurring', mute_schedule.is_recurring)
 
     db.session.commit()
 
@@ -404,8 +480,10 @@ def delete_mute_schedule(mute_id):
 with app.app_context():
     db.create_all()
     create_default_schedules()
+    create_default_mute_schedules()
     load_schedules_into_scheduler()
     schedule_count = Schedule.query.count()
+    mute_schedule_count = MuteSchedule.query.count()
 
 scheduler.start()
 
@@ -413,6 +491,7 @@ scheduler.start()
 add_log("Moody Bell system started", 'success')
 add_log(f"GPIO mode: {'Hardware' if GPIO_AVAILABLE else 'Simulation'}", 'info')
 add_log(f"Loaded {schedule_count} schedules", 'info')
+add_log(f"Loaded {mute_schedule_count} mute schedules", 'info')
 
 # Note: NTP time sync is handled by system cron job (configured in setup/install.sh)
 # Runs every Sunday at 3 AM via /etc/cron.d/ntp-sync

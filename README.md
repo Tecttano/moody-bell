@@ -5,10 +5,10 @@ Automated bell control for Raspberry Pi 4B with touchscreen.
 ## Features
 
 - Touch-friendly 5" display interface
-- Manual bell control (single toll or 15 rings)
+- Manual bell control (custom tolls: 3, 6, 9, 12, 15 rings)
 - Scheduled automated ringing
-- Countdown to next scheduled bell
-- Mute function
+- Scheduled mute periods (auto-mutes during quiet hours)
+- Manual mute override with confirmation
 - Real-time clock with activity logs
 - GPIO5 control
 - Auto screen timeout (5 min) - touch to wake
@@ -20,10 +20,14 @@ Automated bell control for Raspberry Pi 4B with touchscreen.
 - GPIO breakout hat
 - Bell on GPIO5
 
-## Default Schedule
+## Default Schedules
 
-Mon-Sat: 9am (9x), 12pm (12x), 3pm (3x), 6pm (6x)
-Sunday: 9:45am (15x)
+**Bell Rings:**
+- Mon-Sat: 9am (9×), 12pm (12×), 3pm (3×), 6pm (6×)
+- Sunday: 9:45am (15×)
+
+**Mute Periods:**
+- Nighttime Quiet Hours: 8pm - 6am daily (auto-created for 365 days)
 
 ## Installation
 

@@ -8,7 +8,8 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
     name: '',
     start_datetime: '',
     end_datetime: '',
-    enabled: true
+    enabled: true,
+    is_recurring: false
   });
 
   const handleInputChange = (e) => {
@@ -35,7 +36,8 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
       name: schedule.name,
       start_datetime: schedule.start_datetime.slice(0, 16),
       end_datetime: schedule.end_datetime.slice(0, 16),
-      enabled: schedule.enabled
+      enabled: schedule.enabled,
+      is_recurring: schedule.is_recurring || false
     });
     setShowForm(true);
   };
@@ -53,7 +55,8 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
       name: '',
       start_datetime: '',
       end_datetime: '',
-      enabled: true
+      enabled: true,
+      is_recurring: false
     });
   };
 
@@ -61,7 +64,6 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
     return new Date(datetime).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
@@ -74,23 +76,66 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
     return schedule.enabled && now >= start && now <= end;
   };
 
+  // Separate recurring and non-recurring schedules
+  const recurringSchedules = muteSchedules.filter(s => s.is_recurring);
+
+  // Filter non-recurring to only show next 7 days
+  const oneWeekFromNow = new Date();
+  oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+
+  const upcomingSchedules = muteSchedules.filter(s => {
+    if (s.is_recurring) return false; // Already handled separately
+    const startDate = new Date(s.start_datetime);
+    return startDate <= oneWeekFromNow;
+  });
+
+  const groupSchedulesByDate = () => {
+    const grouped = {};
+    upcomingSchedules.forEach(schedule => {
+      const startDate = new Date(schedule.start_datetime).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+      if (!grouped[startDate]) {
+        grouped[startDate] = [];
+      }
+      grouped[startDate].push(schedule);
+    });
+
+    // Sort schedules within each date by start time
+    Object.keys(grouped).forEach(date => {
+      grouped[date].sort((a, b) => {
+        return new Date(a.start_datetime) - new Date(b.start_datetime);
+      });
+    });
+
+    return grouped;
+  };
+
+  const groupedSchedules = groupSchedulesByDate();
+  const sortedDates = Object.keys(groupedSchedules).sort((a, b) => {
+    const dateA = groupedSchedules[a][0].start_datetime;
+    const dateB = groupedSchedules[b][0].start_datetime;
+    return new Date(dateA) - new Date(dateB);
+  });
+
   return (
     <div className="schedule-manager">
-      <div className="schedule-header">
-        <button className="back-button" onClick={onBack}>← Back</button>
-        <h2>Mute Schedules</h2>
-        <button
-          className="add-button"
-          onClick={() => setShowForm(true)}
-        >
+      <div className="manager-header">
+        <button className="back-button" onClick={onBack}>
+          ← Back
+        </button>
+        <h2 className="manager-title">Mute Schedule Manager</h2>
+        <button className="add-button" onClick={() => setShowForm(true)}>
           + Add
         </button>
       </div>
 
       {showForm && (
-        <div className="schedule-form-overlay">
+        <div className="form-overlay">
           <div className="schedule-form">
-            <h3>{editingSchedule ? 'Edit Mute Schedule' : 'New Mute Schedule'}</h3>
+            <h3>{editingSchedule ? 'Edit Mute Schedule' : 'Add New Mute Schedule'}</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Name:</label>
@@ -138,11 +183,23 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
                 </label>
               </div>
 
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="is_recurring"
+                    checked={formData.is_recurring}
+                    onChange={handleInputChange}
+                  />
+                  Recurring (daily, uses time only)
+                </label>
+              </div>
+
               <div className="form-actions">
-                <button type="button" onClick={resetForm} className="btn-cancel">
+                <button type="button" onClick={resetForm} className="cancel-button">
                   Cancel
                 </button>
-                <button type="submit" className="btn-save">
+                <button type="submit" className="submit-button">
                   {editingSchedule ? 'Update' : 'Add'}
                 </button>
               </div>
@@ -151,47 +208,89 @@ const MuteScheduleManager = ({ muteSchedules, onBack, onAddMuteSchedule, onUpdat
         </div>
       )}
 
-      <div className="schedule-list">
-        {muteSchedules.length === 0 ? (
-          <div className="empty-state">
-            <p>No mute schedules configured.</p>
-            <p>Use the + Add button to create one.</p>
-          </div>
+      <div className="schedules-list">
+        {recurringSchedules.length === 0 && sortedDates.length === 0 ? (
+          <div className="no-schedules">No mute schedules configured</div>
         ) : (
-          muteSchedules.map((schedule) => (
-            <div
-              key={schedule.id}
-              className={`schedule-card ${isActive(schedule) ? 'schedule-active' : ''}`}
-            >
-              <div className="schedule-info">
-                <div className="schedule-name">
-                  {schedule.name}
-                  {isActive(schedule) && <span className="active-badge">ACTIVE NOW</span>}
-                </div>
-                <div className="schedule-time-range">
-                  <div>Start: {formatDateTime(schedule.start_datetime)}</div>
-                  <div>End: {formatDateTime(schedule.end_datetime)}</div>
-                </div>
-                <div className="schedule-status">
-                  {schedule.enabled ? 'Enabled' : 'Disabled'}
-                </div>
+          <>
+            {/* Recurring Schedules Section */}
+            {recurringSchedules.length > 0 && (
+              <div className="day-group">
+                <h3 className="day-header">Recurring Schedules</h3>
+                {recurringSchedules.map(schedule => (
+                  <div
+                    key={schedule.id}
+                    className={`schedule-item ${!schedule.enabled ? 'disabled' : ''}`}
+                  >
+                    <div className="schedule-info">
+                      <div className="schedule-time">
+                        {schedule.name}
+                      </div>
+                      <div className="schedule-rings">
+                        Daily: {new Date(schedule.start_datetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - {new Date(schedule.end_datetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      {!schedule.enabled && (
+                        <div className="schedule-status">Disabled</div>
+                      )}
+                    </div>
+                    <div className="schedule-actions">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(schedule)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(schedule.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="schedule-actions">
-                <button
-                  onClick={() => handleEdit(schedule)}
-                  className="btn-edit"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(schedule.id)}
-                  className="btn-delete"
-                >
-                  Delete
-                </button>
+            )}
+
+            {/* Upcoming One-Time Schedules (Next 7 Days) */}
+            {sortedDates.map(date => (
+              <div key={date} className="day-group">
+                <h3 className="day-header">{date}</h3>
+                {groupedSchedules[date].map(schedule => (
+                  <div
+                    key={schedule.id}
+                    className={`schedule-item ${!schedule.enabled ? 'disabled' : ''}`}
+                  >
+                    <div className="schedule-info">
+                      <div className="schedule-time">
+                        {schedule.name}
+                      </div>
+                      <div className="schedule-rings">
+                        {formatDateTime(schedule.start_datetime)} - {formatDateTime(schedule.end_datetime)}
+                      </div>
+                      {!schedule.enabled && (
+                        <div className="schedule-status">Disabled</div>
+                      )}
+                    </div>
+                    <div className="schedule-actions">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(schedule)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(schedule.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>
     </div>

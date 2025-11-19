@@ -27,7 +27,9 @@ Automated bell control for Raspberry Pi 4B with touchscreen.
 - Sunday: 9:45am (15×)
 
 **Mute Periods:**
-- Nighttime Quiet Hours: 8pm - 6am daily (auto-created for 365 days)
+- Nighttime Quiet Hours: 8pm - 6am daily (recurring schedule)
+- Supports one-time mute schedules for special events
+- Manual override available with confirmation dialog
 
 ## Installation
 
@@ -43,7 +45,17 @@ Reboot when done.
 
 Access at `http://localhost` or `http://<pi-ip>`
 
-Touchscreen shows main controls. Tap buttons to ring bell, mute, or manage schedules.
+**Main Controls:**
+- **Ring Bell**: Single toll (tap center bell)
+- **Custom Tolls**: Expandable menu for 3, 6, 9, 12, 15 rings
+- **Mute**: Manual mute toggle
+- **Schedules**: Manage bell ring times
+- **Mute Schedules**: Recurring and one-time mute periods
+
+**Mute Schedule Features:**
+- Recurring schedules repeat daily (e.g., nighttime quiet hours)
+- One-time schedules for special events (shows next 7 days)
+- Manual override prompts confirmation if schedule is active
 
 ## Dev
 

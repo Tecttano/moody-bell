@@ -14,18 +14,15 @@ echo "=== Moody Bell Update Script ==="
 
 cd $REPO_DIR
 
-# Reset any local changes to avoid conflicts
-echo "Resetting local changes..."
-git reset --hard HEAD
+# Fetch and reset to origin/main
+echo "Fetching latest changes..."
+BEFORE_PULL=$(git rev-parse HEAD 2>/dev/null || echo "none")
+git fetch origin
+git reset --hard origin/main
 git clean -fd
-
-# Pull latest changes
-echo "Pulling latest changes..."
-BEFORE_PULL=$(git rev-parse HEAD)
-git pull
 AFTER_PULL=$(git rev-parse HEAD)
 
-# Ensure scripts are executable after pull
+# Ensure scripts are executable
 chmod +x setup/*.sh 2>/dev/null || true
 
 # Determine what changed
